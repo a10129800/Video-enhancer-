@@ -23,6 +23,8 @@ def clean():
         "temp_preview.jpg",
         "comp_before.jpg",
         "comp_after.jpg",
+        "deploy_images.py",
+        "organize.py",
         "_mklink.vbs",
     ]
 

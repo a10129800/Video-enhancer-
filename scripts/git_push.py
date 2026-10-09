@@ -22,7 +22,20 @@ def main():
         input("\n按 Enter 鍵結束...")
         return
 
-    # 2. 自動執行清理
+    # 2. 自動補齊 README 所需展示圖片至 assets/
+    assets_dir = ROOT_DIR / "assets"
+    assets_dir.mkdir(exist_ok=True)
+    img_comp = Path(r"C:/Users/mice/.gemini/antigravity-ide/brain/edd17673-b659-45b8-9e7d-37c84990257c/.user_uploaded/media_1791534944238.jpg")
+    img_ui = Path(r"C:/Users/mice/.gemini/antigravity-ide/brain/edd17673-b659-45b8-9e7d-37c84990257c/.user_uploaded/media_1791534982277.png")
+    import shutil
+    if img_comp.exists():
+        shutil.copy2(str(img_comp), str(assets_dir / "comparison.jpg"))
+        print("[*] 已同步 README 對比圖: assets/comparison.jpg")
+    if img_ui.exists():
+        shutil.copy2(str(img_ui), str(assets_dir / "ui_preview.png"))
+        print("[*] 已同步 README 介面圖: assets/ui_preview.png")
+
+    # 3. 自動執行清理
     try:
         import clean
         clean.clean()
