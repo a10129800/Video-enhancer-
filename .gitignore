@@ -1,0 +1,34 @@
+# 二進位核心與動態庫（自動下載腳本會抓取，避免超過 GitHub 100MB 限制）
+*.exe
+*.dll
+models/
+core/
+
+# 暫存快照與測試媒體
+temp_*
+*.mp4
+*.mkv
+*.avi
+*.mov
+
+# 排除根目錄暫存圖片，但保留 assets 說明圖
+*.jpg
+*.jpeg
+*.png
+*.webp
+!assets/
+!assets/*
+
+# Python 快取
+__pycache__/
+*.pyc
+
+# 打包與發行目錄
+release/
+dist/
+build/
+*.spec
+
+# 系統檔案
+Thumbs.db
+.DS_Store
