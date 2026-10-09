@@ -7,8 +7,9 @@ from pathlib import Path
 CURRENT = Path(__file__).resolve().parent
 BASE_DIR = CURRENT.parent if CURRENT.name in ["scripts", "src"] else CURRENT
 RELEASE_DIR = BASE_DIR / "release"
-PACKAGE_NAME = "影片AI畫質修復工具_v1.0.0"
+PACKAGE_NAME = "影片AI畫質修復工具_v1.0.3"
 TARGET_DIR = RELEASE_DIR / PACKAGE_NAME
+CORE_DIR = BASE_DIR / "core"
 
 def log(msg):
     print(f"[*] {msg}")
@@ -25,6 +26,7 @@ def ensure_icon():
     icon_path = BASE_DIR / "assets" / "app_icon.ico"
     if not icon_path.exists():
         try:
+            sys.path.insert(0, str(CURRENT))
             import create_icon
             create_icon.create_app_icon()
             log("已成功生成 assets/app_icon.ico 與 app_icon.png")
@@ -53,11 +55,21 @@ def try_pyinstaller():
         has_pyinstaller = False
 
     if not has_pyinstaller:
-        log("尚未安裝 PyInstaller。如需編譯為獨立 .exe，可執行: pip install pyinstaller")
-        return False
+        log("尚未安裝 PyInstaller。正在自動安裝: pip install pyinstaller ...")
+        subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"])
+        try:
+            import PyInstaller
+            has_pyinstaller = True
+        except ImportError:
+            log("PyInstaller 安裝失敗，將以綠色免編譯封裝。")
+            return False
 
-    log("檢測到 PyInstaller，正在編譯 影片AI畫質修復工具.exe (帶圖示、免命令提示字元黑框)...")
+    log("正在編譯 影片AI畫質修復工具.exe (版本 v1.0.3, 帶圖示、免命令提示字元黑框)...")
     icon_path = BASE_DIR / "assets" / "app_icon.ico"
+    entry_script = BASE_DIR / "src" / "gui.py"
+    if not entry_script.exists():
+        entry_script = BASE_DIR / "gui.py"
+
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--noconfirm",
@@ -65,7 +77,7 @@ def try_pyinstaller():
         "--windowed",
         f"--icon={icon_path}",
         "--name=影片AI畫質修復工具",
-        "gui.py"
+        str(entry_script)
     ]
     res = subprocess.run(cmd, cwd=str(BASE_DIR))
     return res.returncode == 0
@@ -81,21 +93,26 @@ def build_release_package():
 
     log(f"正在組裝發行包目錄: {TARGET_DIR}")
 
-    # 1. 複製核心引擎與二進位檔
+    # 1. 複製核心引擎與二進位檔 (從 core/ 或 BASE_DIR)
+    target_core = TARGET_DIR / "core"
+    target_core.mkdir(parents=True, exist_ok=True)
+
     bin_files = [
         "ffmpeg.exe", "ffprobe.exe", "realesrgan-ncnn-vulkan.exe",
         "vcomp140.dll", "vcomp140d.dll"
     ]
     for b in bin_files:
-        src = BASE_DIR / b
+        src = CORE_DIR / b if (CORE_DIR / b).exists() else BASE_DIR / b
         if src.exists():
             shutil.copy2(src, TARGET_DIR / b)
+            shutil.copy2(src, target_core / b)
             log(f"已包含核心: {b}")
 
     # 2. 複製 AI 模型目錄
-    models_dir = BASE_DIR / "models"
-    if models_dir.exists():
-        shutil.copytree(models_dir, TARGET_DIR / "models", dirs_exist_ok=True)
+    models_src = CORE_DIR / "models" if (CORE_DIR / "models").exists() else BASE_DIR / "models"
+    if models_src.exists():
+        shutil.copytree(models_src, TARGET_DIR / "models", dirs_exist_ok=True)
+        shutil.copytree(models_src, target_core / "models", dirs_exist_ok=True)
         log("已包含 AI 模型資料夾: models/")
 
     # 3. 複製資源檔案 assets
@@ -117,12 +134,13 @@ def build_release_package():
                 shutil.copy2(item, dest)
         exe_packaged = True
 
-    # 5. 複製 Python 腳本（免安裝環境直接雙擊亦可運行）
-    scripts = ["gui.py", "enhance_ai.py", "install_all.py", "create_icon.py"]
-    for s in scripts:
-        src = BASE_DIR / s
-        if src.exists():
-            shutil.copy2(src, TARGET_DIR / s)
+    # 5. 複製原始碼 (以便非編譯環境亦可直接運行)
+    src_dir = BASE_DIR / "src"
+    if src_dir.exists():
+        shutil.copytree(src_dir, TARGET_DIR / "src", dirs_exist_ok=True)
+    for s in ["gui.py", "enhance_ai.py", "install_all.py", "create_icon.py"]:
+        if (BASE_DIR / s).exists():
+            shutil.copy2(BASE_DIR / s, TARGET_DIR / s)
 
     # 6. 製作帶有專屬 Icon 的 Windows 啟動捷徑與免黑框啟動器
     icon_target = TARGET_DIR / "assets" / "app_icon.ico"
@@ -149,18 +167,26 @@ def build_release_package():
 
     # 7. 建立說明文件
     readme_text = f"""========================================================
-  ✨ 影片 AI 畫質修復 & 消除浮水印工具 - Release 發行版
+  ✨ 影片 AI 畫質修復 & 消除浮水印工具 v1.0.3 - Release 發行版
 ========================================================
 
 【快速啟動】
-1. 直接雙擊「影片AI畫質修復工具.lnk」或「啟動工具(免黑框).vbs」。
+1. 直接雙擊「影片AI畫質修復工具.exe」或「影片AI畫質修復工具.lnk」。
 2. 即可開啟圖形介面，隨開隨用！
 
+【版本更新 (v1.0.3)】
+- 🛡️ FFmpeg Delogo 現代相容性修正：徹底移除已棄用的 band 選項，修復 Option 'band' not found 報錯
+- 🛡️ 浮水印邊界安全防護：保留 X>=1, Y>=1 動態約束，杜絕 4294967274 (EINVAL) 崩潰
+- ⚡ 全新極速畫布平移引擎：0ms 極致流暢，徹底解決放大後畫面卡死、無法移動問題
+- ✋ 雙模式切換：新增 [✏️ 塗抹] 與 [✋ 平移] 切換按鈕，筆電觸控板完美相容
+- 🖱️ 全手勢支援：滑鼠右鍵/中鍵/長按 Space + 左鍵/方向鍵隨意平移
+- 🔍 游標焦點縮放 (Zoom to cursor) 與 [⛶ 置中] 快捷視角回正
+
 【核心組件清單】
+- 影片AI畫質修復工具.exe (獨立桌面應用程式)
 - Real-ESRGAN-ncnn-vulkan (AI 超解析度修復核心)
 - FFmpeg & FFprobe (影音串流解碼與無失真封裝)
 - models/ (內建超解析度 AI 模型)
-- OpenCV / Pillow (浮水印塗抹修復演算法)
 
 【注意事項】
 - 支援各大顯示卡 (NVIDIA / AMD / Intel GPU)，透過 Vulkan 硬體加速運算。
@@ -181,6 +207,19 @@ def build_release_package():
     print("=" * 56)
 
 if __name__ == "__main__":
+    if "--exe" in sys.argv:
+        print("=" * 60)
+        print("  ✨ 正在為您編譯 影片AI畫質修復工具 v1.0.3 (EXE 獨立執行檔)")
+        print("=" * 60)
+        ensure_icon()
+        try_pyinstaller()
+        build_release_package()
+        try:
+            subprocess.run(["explorer", str(RELEASE_DIR)])
+        except Exception:
+            pass
+        sys.exit(0)
+
     print("=" * 60)
     print("  ✨ 影片 AI 畫質修復工具 - Release 發行版打包精靈")
     print("=" * 60)

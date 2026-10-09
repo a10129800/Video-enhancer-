@@ -62,7 +62,7 @@ def get_media_details(ffprobe_path, media_path):
 class VideoAiApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("影片 AI 畫質修復 & 消除浮水印工具")
+        self.title("影片 AI 畫質修復 & 消除浮水印工具 v1.0.3")
         self.geometry("820x720")
         self.minsize(740, 620)
         self.configure(bg="#f4f5f7")
@@ -105,6 +105,10 @@ class VideoAiApp(tk.Tk):
         self.pan_y = 0
         self.drag_start_x = 0
         self.drag_start_y = 0
+        self.is_panning = False
+
+        self.tool_mode = "brush"  # 'brush' (塗抹標記) 或 'pan' (拖曳平移)
+        self.space_pressed = False
 
         self.brush_size = tk.IntVar(value=25)
         self.undo_stack = []
@@ -131,7 +135,7 @@ class VideoAiApp(tk.Tk):
         top_frame = tk.Frame(self, bg="#f4f5f7")
         top_frame.pack(fill="x", padx=main_pad, pady=(6, 2))
 
-        lbl_title = tk.Label(top_frame, text="✨ 影片 AI 畫質修復 & 消除浮水印工具", font=("Microsoft JhengHei UI", 14, "bold"), bg="#f4f5f7", fg="#1e293b")
+        lbl_title = tk.Label(top_frame, text="✨ 影片 AI 畫質修復 & 消除浮水印工具 v1.0.3", font=("Microsoft JhengHei UI", 14, "bold"), bg="#f4f5f7", fg="#1e293b")
         lbl_title.pack(anchor="w")
 
         self.lbl_status_engine = tk.Label(top_frame, text="檢查中...", font=("Microsoft JhengHei UI", 9), bg="#f4f5f7", fg="#16a34a")
@@ -337,20 +341,28 @@ class VideoAiApp(tk.Tk):
         row1 = tk.Frame(tool_box, bg="#f4f5f7")
         row1.pack(fill="x", pady=2)
 
-        tk.Button(row1, text="📁 開啟檔案", font=("Microsoft JhengHei UI", 9), bg="#e2e8f0", relief="groove", padx=8, pady=2, command=self.open_inpaint_file).pack(side="left", padx=(0, 8))
+        tk.Button(row1, text="📁 開啟檔案", font=("Microsoft JhengHei UI", 9), bg="#e2e8f0", relief="groove", padx=8, pady=2, command=self.open_inpaint_file).pack(side="left", padx=(0, 6))
 
-        tk.Label(row1, text="筆刷粗細：", font=("Microsoft JhengHei UI", 9), bg="#f4f5f7").pack(side="left")
-        scale_brush = tk.Scale(row1, from_=5, to=80, orient="horizontal", variable=self.brush_size, showvalue=0, bg="#f4f5f7", length=80, command=self.update_brush_label)
-        scale_brush.pack(side="left", padx=(2, 4))
+        # 模式切換：塗抹模式 vs 平移抓手模式
+        tk.Label(row1, text="模式：", font=("Microsoft JhengHei UI", 9), bg="#f4f5f7").pack(side="left", padx=(2, 0))
+        self.btn_mode_brush = tk.Button(row1, text="✏️ 塗抹", font=("Microsoft JhengHei UI", 9, "bold"), bg="#0284c7", fg="#ffffff", relief="flat", padx=6, pady=2, command=lambda: self.set_tool_mode("brush"))
+        self.btn_mode_brush.pack(side="left", padx=1)
+        self.btn_mode_pan = tk.Button(row1, text="✋ 平移", font=("Microsoft JhengHei UI", 9), bg="#e2e8f0", fg="#334155", relief="groove", padx=6, pady=2, command=lambda: self.set_tool_mode("pan"))
+        self.btn_mode_pan.pack(side="left", padx=(1, 6))
+
+        tk.Label(row1, text="筆刷：", font=("Microsoft JhengHei UI", 9), bg="#f4f5f7").pack(side="left")
+        scale_brush = tk.Scale(row1, from_=5, to=80, orient="horizontal", variable=self.brush_size, showvalue=0, bg="#f4f5f7", length=70, command=self.update_brush_label)
+        scale_brush.pack(side="left", padx=(1, 2))
         self.lbl_brush_val = tk.Label(row1, text="25px", font=("Consolas", 9, "bold"), bg="#f4f5f7", width=4)
-        self.lbl_brush_val.pack(side="left", padx=(0, 8))
+        self.lbl_brush_val.pack(side="left", padx=(0, 6))
 
         tk.Label(row1, text="縮放：", font=("Microsoft JhengHei UI", 9), bg="#f4f5f7").pack(side="left")
         tk.Button(row1, text="➕ 放大", font=("Microsoft JhengHei UI", 8), bg="#e2e8f0", relief="groove", padx=4, pady=1, command=self.zoom_in).pack(side="left", padx=1)
         tk.Button(row1, text="➖ 縮小", font=("Microsoft JhengHei UI", 8), bg="#e2e8f0", relief="groove", padx=4, pady=1, command=self.zoom_out).pack(side="left", padx=1)
         tk.Button(row1, text="⟲ 重置", font=("Microsoft JhengHei UI", 8), bg="#e2e8f0", relief="groove", padx=4, pady=1, command=self.zoom_reset).pack(side="left", padx=1)
+        tk.Button(row1, text="⛶ 置中", font=("Microsoft JhengHei UI", 8), bg="#e2e8f0", relief="groove", padx=4, pady=1, command=self.zoom_center).pack(side="left", padx=1)
         self.lbl_zoom = tk.Label(row1, text="100%", font=("Consolas", 8, "bold"), bg="#f4f5f7", fg="#1d4ed8", width=5)
-        self.lbl_zoom.pack(side="left", padx=(0, 8))
+        self.lbl_zoom.pack(side="left", padx=(0, 6))
 
         tk.Button(row1, text="↩ 復原", font=("Microsoft JhengHei UI", 9), bg="#e2e8f0", relief="groove", padx=6, pady=2, command=self.undo_stroke).pack(side="left", padx=(0, 4))
         tk.Button(row1, text="🗑️ 清除標記", font=("Microsoft JhengHei UI", 9), bg="#e2e8f0", relief="groove", padx=6, pady=2, command=self.clear_mask).pack(side="left")
@@ -367,7 +379,7 @@ class VideoAiApp(tk.Tk):
         self.btn_send_ai = tk.Button(row2, text="🚀 傳送至 AI 放大修復", font=("Microsoft JhengHei UI", 9, "bold"), bg="#10b981", fg="#ffffff", activebackground="#059669", relief="flat", padx=10, pady=3, state="disabled", cursor="hand2", command=self.send_to_ai_tab)
         self.btn_send_ai.pack(side="left", padx=(0, 10))
 
-        tk.Label(row2, text="💡 提示：左鍵塗抹 | 滾輪/按鈕縮放 | 右鍵按住拖曳平移", font=("Microsoft JhengHei UI", 8), bg="#f4f5f7", fg="#64748b").pack(side="right")
+        tk.Label(row2, text="💡 提示：左鍵塗抹(可切換✋平移) | 滾輪縮放 | 中鍵/右鍵/空白鍵+左鍵按住拖曳移動", font=("Microsoft JhengHei UI", 8), bg="#f4f5f7", fg="#64748b").pack(side="right")
 
         canvas_frame = tk.Frame(self.tab_inpaint, bg="#1e2638")
         canvas_frame.pack(fill="both", expand=True, pady=4)
@@ -376,25 +388,83 @@ class VideoAiApp(tk.Tk):
         self.canvas.pack(fill="both", expand=True)
 
         self.canvas.bind("<Configure>", self.on_canvas_resize)
-        self.canvas.bind("<Button-1>", self.on_paint_start)
-        self.canvas.bind("<B1-Motion>", self.on_paint_move)
-        self.canvas.bind("<ButtonRelease-1>", self.on_paint_end)
+        self.canvas.bind("<Button-1>", self.on_mouse_left_down)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_left_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_mouse_left_up)
+        # 滑鼠中鍵 (Button-2) 與右鍵 (Button-3) 隨時隨地支援按住平移
+        self.canvas.bind("<Button-2>", self.on_pan_start)
+        self.canvas.bind("<B2-Motion>", self.on_pan_move)
+        self.canvas.bind("<ButtonRelease-2>", self.on_pan_end)
         self.canvas.bind("<Button-3>", self.on_pan_start)
         self.canvas.bind("<B3-Motion>", self.on_pan_move)
+        self.canvas.bind("<ButtonRelease-3>", self.on_pan_end)
         self.canvas.bind("<MouseWheel>", self.on_mouse_wheel)
+
+        # 鍵盤 Space 鍵暫時切換為平移模式
+        self.bind_all("<KeyPress-space>", self.on_space_down)
+        self.bind_all("<KeyRelease-space>", self.on_space_up)
+        # 鍵盤方向鍵微調平移
+        self.bind_all("<Left>", lambda e: self.pan_by(40, 0))
+        self.bind_all("<Right>", lambda e: self.pan_by(-40, 0))
+        self.bind_all("<Up>", lambda e: self.pan_by(0, 40))
+        self.bind_all("<Down>", lambda e: self.pan_by(0, -40))
 
         self.draw_placeholder()
 
-    # ==================== 縮放與平移核心 ====================
-    def zoom_in(self):
+    # ==================== 模式切換與縮放平移核心 ====================
+    def set_tool_mode(self, mode):
+        self.tool_mode = mode
+        if mode == "brush":
+            self.btn_mode_brush.config(bg="#0284c7", fg="#ffffff", relief="flat")
+            self.btn_mode_pan.config(bg="#e2e8f0", fg="#334155", relief="groove")
+            self.canvas.config(cursor="crosshair")
+        else:
+            self.btn_mode_brush.config(bg="#e2e8f0", fg="#334155", relief="groove")
+            self.btn_mode_pan.config(bg="#0284c7", fg="#ffffff", relief="flat")
+            self.canvas.config(cursor="fleur")
+
+    def on_space_down(self, event):
+        try:
+            if self.notebook.select() == str(self.tab_inpaint) and not self.space_pressed:
+                self.space_pressed = True
+                self.canvas.config(cursor="fleur")
+        except Exception:
+            pass
+
+    def on_space_up(self, event):
+        if self.space_pressed:
+            self.space_pressed = False
+            if self.tool_mode == "brush":
+                self.canvas.config(cursor="crosshair")
+            else:
+                self.canvas.config(cursor="fleur")
+
+    def on_mouse_left_down(self, event):
         if not self.display_image: return
-        self.user_zoom = min(5.0, round(self.user_zoom * 1.25, 2))
-        self.redraw_canvas_image()
+        if self.tool_mode == "pan" or self.space_pressed:
+            self.on_pan_start(event)
+        else:
+            self.on_paint_start(event)
+
+    def on_mouse_left_drag(self, event):
+        if not self.display_image: return
+        if self.tool_mode == "pan" or self.space_pressed:
+            self.on_pan_move(event)
+        else:
+            self.on_paint_move(event)
+
+    def on_mouse_left_up(self, event):
+        if not self.display_image: return
+        if self.tool_mode == "pan" or self.space_pressed:
+            self.on_pan_end(event)
+        else:
+            self.on_paint_end(event)
+
+    def zoom_in(self):
+        self.zoom_step(1.25)
 
     def zoom_out(self):
-        if not self.display_image: return
-        self.user_zoom = max(0.5, round(self.user_zoom / 1.25, 2))
-        self.redraw_canvas_image()
+        self.zoom_step(1.0 / 1.25)
 
     def zoom_reset(self):
         if not self.display_image: return
@@ -403,14 +473,50 @@ class VideoAiApp(tk.Tk):
         self.pan_y = 0
         self.redraw_canvas_image()
 
+    def zoom_center(self):
+        if not self.display_image: return
+        self.pan_x = 0
+        self.pan_y = 0
+        self.redraw_canvas_image()
+
+    def zoom_step(self, factor, center_x=None, center_y=None):
+        if not self.display_image: return
+        cw = max(self.canvas.winfo_width(), 100)
+        ch = max(self.canvas.winfo_height(), 100)
+
+        old_zoom = self.user_zoom
+        new_zoom = max(0.4, min(8.0, round(old_zoom * factor, 2)))
+        if new_zoom == old_zoom: return
+
+        if center_x is not None and center_y is not None:
+            # 游標焦點縮放演算法：保持滑鼠所在的原圖像素點不偏移
+            old_total = self.base_ratio * old_zoom
+            new_total = self.base_ratio * new_zoom
+            rx = (center_x - self.disp_ox) / old_total
+            ry = (center_y - self.disp_oy) / old_total
+
+            new_w = int(self.orig_w * new_total)
+            new_h = int(self.orig_h * new_total)
+            new_disp_ox = center_x - rx * new_total
+            new_disp_oy = center_y - ry * new_total
+
+            self.pan_x = int(new_disp_ox - (cw - new_w) // 2)
+            self.pan_y = int(new_disp_oy - (ch - new_h) // 2)
+
+        self.user_zoom = new_zoom
+        self.redraw_canvas_image()
+
     def on_mouse_wheel(self, event):
         if not self.display_image: return
-        if event.delta > 0: self.zoom_in()
-        else: self.zoom_out()
+        if event.delta > 0:
+            self.zoom_step(1.25, event.x, event.y)
+        else:
+            self.zoom_step(1.0 / 1.25, event.x, event.y)
 
     def on_pan_start(self, event):
         self.drag_start_x = event.x
         self.drag_start_y = event.y
+        self.is_panning = True
 
     def on_pan_move(self, event):
         if not self.display_image: return
@@ -418,9 +524,27 @@ class VideoAiApp(tk.Tk):
         dy = event.y - self.drag_start_y
         self.pan_x += dx
         self.pan_y += dy
+        self.disp_ox += dx
+        self.disp_oy += dy
         self.drag_start_x = event.x
         self.drag_start_y = event.y
-        self.redraw_canvas_image()
+        # 極速平移：不重複 resize 影像，直接硬體級平移畫布內容，0ms 延遲
+        self.canvas.move("all", dx, dy)
+
+    def on_pan_end(self, event=None):
+        self.is_panning = False
+
+    def pan_by(self, dx, dy):
+        if not self.display_image: return
+        try:
+            if self.notebook.select() != str(self.tab_inpaint): return
+        except Exception:
+            pass
+        self.pan_x += dx
+        self.pan_y += dy
+        self.disp_ox += dx
+        self.disp_oy += dy
+        self.canvas.move("all", dx, dy)
 
     def update_brush_label(self, val):
         self.lbl_brush_val.config(text=f"{int(float(val))}px")
@@ -564,12 +688,7 @@ class VideoAiApp(tk.Tk):
         max_x = max(x + r for x, y, r in self.mask_boxes)
         min_y = min(y - r for x, y, r in self.mask_boxes)
         max_y = max(y + r for x, y, r in self.mask_boxes)
-
-        min_x = max(0, int(min_x))
-        min_y = max(0, int(min_y))
-        w = max(10, min(self.orig_w - min_x, int(max_x - min_x)))
-        h = max(10, min(self.orig_h - min_y, int(max_y - min_y)))
-        return min_x, min_y, w, h
+        return min_x, min_y, max_x, max_y
 
     def start_inpaint_process(self):
         if self.is_processing: return
@@ -594,19 +713,53 @@ class VideoAiApp(tk.Tk):
         threading.Thread(target=self.inpaint_task, daemon=True).start()
 
     def inpaint_task(self):
-        ffmpeg, _, _ = get_binaries()
-        bbox = self.get_mask_bounding_box()
-        x, y, w, h = bbox
-        self.log(f"浮水印塗抹範圍: X={x}, Y={y}, 寬={w}, 高={h}")
-
+        ffmpeg, ffprobe, _ = get_binaries()
         src = self.inpaint_file
         self.last_output_dir = src.parent
         dst = src.with_name(f"{src.stem}_delogo{src.suffix}")
         img_exts = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+        is_image = src.suffix.lower() in img_exts
+
+        # 1. 取得媒體真實物理解析度
+        if is_image:
+            media_w, media_h = self.orig_w, self.orig_h
+        else:
+            real_w, real_h, _, _ = get_media_details(ffprobe, src) if ffprobe else (0, 0, 0, 0)
+            media_w = real_w if real_w > 0 else self.orig_w
+            media_h = real_h if real_h > 0 else self.orig_h
+
+        # 2. 坐標對齊換算 (預覽圖比例 -> 實體解析度)
+        scale_x = media_w / max(1, self.orig_w)
+        scale_y = media_h / max(1, self.orig_h)
+
+        raw_bbox = self.get_mask_bounding_box()
+        if not raw_bbox:
+            self.is_processing = False
+            self.btn_run_inpaint.config(state="normal", text="✨ 立即消除浮水印")
+            return
+        raw_x1, raw_y1, raw_x2, raw_y2 = raw_bbox
+
+        scaled_x1 = int(raw_x1 * scale_x)
+        scaled_x2 = int(raw_x2 * scale_x)
+        scaled_y1 = int(raw_y1 * scale_y)
+        scaled_y2 = int(raw_y2 * scale_y)
+
+        # 3. 嚴格邊界保護 (徹底解決 FFmpeg delogo AVERROR(EINVAL) 4294967274 錯誤)
+        # delogo 要求浮水印四周至少保有 band (預設 1) 像素邊緣供內插取樣，不能緊貼 0 或超出影片邊界
+        band = 1
+        x = max(band, min(media_w - band - 2, scaled_x1))
+        y = max(band, min(media_h - band - 2, scaled_y1))
+        x2 = max(x + 2, min(media_w - band, scaled_x2))
+        y2 = max(y + 2, min(media_h - band, scaled_y2))
+
+        w = x2 - x
+        h = y2 - y
+
+        self.log(f"浮水印塗抹範圍: X={x}, Y={y}, 寬={w}, 高={h} (媒體尺寸: {media_w}×{media_h}, 邊界保護已校正)")
 
         try:
             delogo_vf = f"delogo=x={x}:y={y}:w={w}:h={h}"
-            if src.suffix.lower() in img_exts:
+            if is_image:
                 self.lbl_info.config(text="正在消除圖片浮水印...")
                 self.log(f"▶ 正在消除圖片浮水印: {src.name}")
                 cmd = [ffmpeg, "-y", "-i", str(src), "-vf", delogo_vf, str(dst)]
@@ -793,11 +946,24 @@ class VideoAiApp(tk.Tk):
 
     def run_subproc(self, cmd):
         if self.cancel_requested: raise InterruptedError("使用者已手動取消")
-        self.current_process = subprocess.Popen(cmd, creationflags=CREATE_NO_WINDOW)
-        ret = self.current_process.wait()
+        self.current_process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=CREATE_NO_WINDOW
+        )
+        stdout, stderr = self.current_process.communicate()
+        ret = self.current_process.returncode
         self.current_process = None
         if self.cancel_requested: raise InterruptedError("使用者已手動取消")
-        if ret != 0: raise subprocess.CalledProcessError(ret, cmd)
+        if ret != 0:
+            err_msg = stderr.strip() if stderr else f"Exit code {ret}"
+            lines = [l for l in err_msg.splitlines() if l.strip()]
+            summary_err = "\n".join(lines[-6:]) if lines else f"Exit code {ret}"
+            raise RuntimeError(f"處理失敗 (狀態碼 {ret})：\n{summary_err}")
 
     def start_enhance_process(self):
         if self.is_processing: return

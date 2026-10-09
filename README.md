@@ -1,6 +1,7 @@
 # ✨ 影片 AI 畫質修復 & 消除浮水印工具 (Video AI Enhancer)
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Version-v1.0.3-blueviolet?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/Python-3.8+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/AI%20Core-Real--ESRGAN%20(Vulkan)-10b981?style=flat-square" alt="Real-ESRGAN">
   <img src="https://img.shields.io/badge/Video%20Engine-FFmpeg-0078D7?style=flat-square&logo=ffmpeg&logoColor=white" alt="FFmpeg">
@@ -8,6 +9,22 @@
 </p>
 
 基於 **Real-ESRGAN (NCNN Vulkan)** 與 **FFmpeg** 的一站式輕量級桌面端 AI 工具，支援**影片與照片的 4x 超解析度畫質修復**，以及**互動式塗抹消除浮水印 (Inpainting)**。零門檻、免安裝 PyTorch/CUDA 巨量依賴、全便攜化隨開隨用！
+
+---
+
+## 📢 v1.0.3 最新更新日誌 (Changelog)
+
+- 🛡️ **FFmpeg Delogo 現代相容性修正 (解決 Option 'band' not found)**：
+  - 徹底移除新版 FFmpeg 已棄用的 `band` 參數，改用全版本標準通用的濾鏡語法 `delogo=x:y:w:h`，全面相容現代所有 FFmpeg 發行版。
+  - 保留 $X \ge 1, Y \ge 1$ 動態邊界防護約束，既不觸發未知選項錯誤，又根絕了先前貼邊引發的 `4294967274 (EINVAL)` 崩潰！
+- ⚡ **極速畫布平移引擎 (解決放大後畫面卡死/無法移動)**：
+  - 徹底重構平移底層，拖曳移動時移除重複的影像雙線性插值計算，改以硬體級畫布同步位移，達成 **0ms 延遲、極致絲滑流暢**。
+- ✋ **雙模式切換與全操作手勢支援**：
+  - 新增 **`[✏️ 塗抹]`** 與 **`[✋ 平移]`** 模式切換按鈕，筆電觸控板用戶單指/左鍵即可任意移動視角。
+  - 支援 **滑鼠右鍵**、**滑鼠中鍵 (滾輪按下)**、**長按空白鍵 (Space) + 左鍵** 隨時拖曳平移。
+  - 新增 **`[⛶ 置中]`** 快捷回正按鈕，並支援鍵盤方向鍵（`←` `↑` `→` `↓`）微調平移視角。
+- 🔍 **游標焦點縮放 (Zoom to Cursor)**：
+  - 使用滑鼠滾輪縮放時，自動以滑鼠指針所在的位置為焦點進行縮放，放大時畫面不再跑偏。
 
 ---
 
@@ -43,7 +60,7 @@
 
 ### 2. 🧽 塗抹消除浮水印 (Inpainting)
 - **直覺塗抹畫布**：支援載入影片（自動提取首幀預覽）與圖片，滑鼠左鍵自由塗抹遮罩。
-- **🔍 畫面縮放與平移**：支援滑鼠滾輪放大（最高 500%）與滑鼠右鍵拖曳平移，角落細小 Logo 也能超精準塗抹！
+- **🔍 畫面縮放與平移**：支援游標焦點滾輪縮放（最高 800%）與多種平移手勢（抓手模式、右鍵/中鍵/Space+左鍵），邊角細微浮水印輕鬆搞定！
 - **可調筆刷與 Undo**：提供 5px~80px 筆刷粗細滑桿，支援一鍵復原 (Undo) 與清空標記。
 - **🔗 一鍵聯動 AI 放大**：消除浮水印後，可直接點擊「傳送至 AI 放大修復」，自動切換至 AI 頁面無縫進行 4x 超解析度處理！
 
@@ -58,17 +75,29 @@
 
 雙擊專案目錄下的：
 - **`啟動工具(免黑框).vbs`**（推薦，完全無黑框閃爍）
-- 或 **`啟動圖形介面.bat`**
+- 或 **`啟動工具.bat`**
+
+若已打包為獨立發行版，可直接雙擊：
+- **`影片AI畫質修復工具.exe`**
 
 ---
 
-## 📦 核心環境一鍵下載
+## 📦 一鍵打包為獨立 EXE 執行檔 (v1.0.3)
+
+本專案提供全自動化 PyInstaller 打包腳本：
+1. 直接雙擊根目錄的 **`一鍵製作EXE版本(v1.0.3).bat`**。
+2. 腳本會自動檢測並編譯最新的 `src/gui.py` 為帶有圖示、無黑框的獨立 **`影片AI畫質修復工具.exe`**。
+3. 自動將 AI 模型、FFmpeg 核心及資源封裝至 `release/影片AI畫質修復工具_v1.0.3/`，並自動生成 `影片AI畫質修復工具_v1.0.3.zip` 綠色免安裝壓縮發行包！
+
+---
+
+## 📥 核心環境一鍵下載
 
 若本機尚未具備 AI 核心或 FFmpeg，軟體支援**零設定全自動下載**：
 1. **方式 A**：開啟 UI 後，左下角直接點擊 **「⬇️ 一鍵安裝 AI 引擎」**，程式會在介面內自動下載並解壓（約 20MB Real-ESRGAN + 必要組件）。
 2. **方式 B**：在資料夾中直接雙擊：
    ```bash
-   一鍵安裝核心.bat
+   scripts\一鍵安裝核心.bat
    ```
 
 ---
